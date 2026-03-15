@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>《肠胃审查官》 - ASCII互动视觉小说</title>
+<style>
+    :root {
+        --bg-color: #000000;
+        --text-main: #ffffff;
+        --text-alert: #ff4444;
+        --text-dim: #666666;
+        --border-style: 2px solid #ffffff;
+        --font-main: 'Courier New', Courier, monospace;
+    }
+
+    * {
+        box-sizing: border-box;
+        user-select: none;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: #000;
+        color: var(--text-main);
+        font-family: var(--font-main);
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+    }
+
+    /* CRT 屏幕效果 */
+    .crt-overlay {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0.03));
+        background-size: 100% 4px, 6px 100%;
+        z-index: 100;
+        pointer-events: none;
+        opacity: 0.6;
+    }
+
+    #game-container {
+        width: 1920px;
+        height: 1080px;
+        background-color: var(--bg-color);
+        background-image: url("ascii (1).png");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        position: relative;
+        border: var(--border-style);
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        transform-origin: center center;
+    }
+
+    /* 封面 */
+        #screen-cover {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+        
+        .title-ascii {
+            font-size: 24px;
+            line-height: 1.2;
+            white-space: pre;
+            text-align: center;
+            margin-bottom: 60px;
+            text-shadow: 0 0 10px var(--text-main);
+        }
+
+        .btn-start {
+            background: rgba(0,0,0,0.8);
+            color: var(--text-main);
+            border: var(--border-style);
+            padding: 20px 60px;
+            font-size: 36px;
+            font-family: var(--font-main);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-start:hover {
+            background: var(--text-main);
+            color: var(--bg-color);
+        }
+
+        /* 游戏主界面布局 */
+        #screen-game {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            background-color: transparent;
+        }
+
+        /* 顶部状态栏 */
+        #status-bar {
+            height: 80px;
+            border-bottom: var(--border-style);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            font-size: 32px;
+            font-weight: bold;
+            background: rgba(10, 10, 10, 0.8);
+        }
+
+        /* 中间区域（安检仪与人物） */
+        #main-area {
+            flex: 1;
+            display: flex;
+            position: relative;
+            justify-content: center;
+            align-items: center;
+            border-bottom: var(--border-style);
+            background: rgba(0, 0, 0, 0.5); /* 半透明遮罩凸显人物 */
+        }
+
+        /* 访客图像 */
+        #visitor-art {
+            font-size: 32px;
+            line-height: 1.2;
+            white-space: pre;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .red-code {
+            color: var(--text-alert);
+            background: rgba(255,0,0,0.2);
+            text-shadow: 0 0 5px var(--text-alert);
+            font-weight: bold;
+            animation: glitch 0.5s infinite;
+        }
+
+        @keyframes glitch {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+
+        /* 扫描特效 */
+    #scanner-beam {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 5px;
+        background: rgba(255, 255, 255, 0.8);
+        box-shadow: 0 0 15px var(--text-main);
+        display: none;
+    }
+
+    /* 底部操作与对话区 */
+    #bottom-area {
+        height: 350px;
+        display: flex;
+        border-top: var(--border-style);
+        background: rgba(0, 0, 0, 0.9);
+    }
+
+    .tool-panel {
+        width: 280px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-evenly;
+        border-right: var(--border-style);
+    }
+
+    #list-panel {
+        border-right: none;
+        border-left: var(--border-style);
+    }
+
+    .tool-btn {
+        text-align: center;
+        cursor: pointer;
+        padding: 15px;
+        width: 90%;
+        border: 1px solid transparent;
+        transition: all 0.2s;
+        font-size: 24px;
+    }
+
+    .tool-btn:hover { border: 1px dashed var(--text-main); background: rgba(255,255,255,0.1); }
+    .tool-btn.used { color: var(--text-dim); }
+    .icon-ascii { font-size: 70px; margin-bottom: 10px; }
+
+    /* 对话框容器 */
+    #dialog-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 30px;
+        position: relative;
+    }
+
+    /* 对话框 */
+    #dialog-box {
+        flex: 1;
+        font-size: 28px;
+        line-height: 1.6;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #dialog-speaker {
+        font-weight: bold;
+        margin-bottom: 15px;
+        font-size: 30px;
+        color: #fff;
+        border-bottom: 1px dashed var(--text-dim);
+        padding-bottom: 10px;
+    }
+
+    /* 行动按钮区 (默认隐藏) */
+    #decision-actions {
+        display: none;
+        justify-content: space-around;
+        align-items: center;
+        padding-top: 25px;
+        border-top: 1px dashed var(--text-main);
+    }
+    
+    .action-btn {
+        background: rgba(0,0,0,0.8);
+        color: var(--text-main);
+            border: 1px solid var(--text-main);
+            padding: 10px 20px;
+            font-family: var(--font-main);
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .action-btn:hover:not(:disabled) {
+            background: var(--text-main);
+            color: var(--bg-color);
+        }
+        .action-btn:disabled {
+            color: var(--text-dim);
+            border-color: var(--text-dim);
+            cursor: not-allowed;
+        }
+        
+        .btn-danger { color: var(--text-alert); border-color: var(--text-alert); }
+        .btn-danger:hover:not(:disabled) { background: var(--text-alert); color: #000; }
+
+        /* 弹窗面板 (名单、电话、ID卡) */
+        .modal {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: var(--border-style);
+            padding: 40px;
+            z-index: 60;
+            display: none;
+            box-shadow: 0 0 50px rgba(0,0,0,0.9);
+            min-width: 450px;
+            font-size: 24px;
+        }
+        .modal-title { border-bottom: 1px dashed var(--text-main); padding-bottom: 15px; margin-bottom: 25px; font-weight: bold; text-align: center; font-size: 30px;}
+        .close-btn { position: absolute; top: 10px; right: 15px; cursor: pointer; color: var(--text-alert); font-size: 30px;}
+        
+        /* 结局屏 */
+        #screen-end {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 80;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        /* 工具类 */
+        .hidden { display: none !important; }
+        .text-red { color: var(--text-alert); }
+
+        /* ID卡片浮层 */
+        #id-card {
+            position: absolute;
+            top: 80px;
+            left: 50px;
+            border: 1px dashed var(--text-main);
+            padding: 20px;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="crt-overlay"></div>
+
+    <div id="game-container">
+        
+        <!-- 开始封面 -->
+        <div id="screen-cover">
+            <div class="title-ascii" id="title-art"></div>
+            <p style="margin-bottom: 40px; color: #fff;">扮演肠胃审查官，拦截伪装成真实食物的工业预制菜。</p>
+            <button class="btn-start" onclick="startGame()">开始审查 [ENTER]</button>
+            <p style="margin-top: 30px; font-size: 14px; color: var(--text-dim);">* 请开启系统音频以获得沉浸体验 *</p>
+        </div>
+
+        <!-- 游戏主界面 -->
+        <div id="screen-game">
+            <!-- 状态栏 -->
+            <div id="status-bar">
+                <span id="stat-hp">血量: ♥♥♥</span>
+                <span id="stat-disc">分辨力: 👁👁👁</span>
+                <span id="stat-acid">胃酸: 🧪🧪🧪🧪🧪</span>
+                <span id="stat-visitor">访客: 0/5</span>
+            </div>
+
+            <!-- 安检仪与人物区 -->
+            <div id="main-area">
+                <div id="scanner-beam"></div>
+                <div id="visitor-art"></div>
+                
+                <!-- ID卡片 -->
+                <div id="id-card">
+                    <div style="border-bottom: 2px solid; margin-bottom: 10px; font-size: 26px; font-weight: bold;">入境许可证 ID CARD</div>
+                    <div id="id-content" style="font-size: 24px; line-height: 1.8;"></div>
+                </div>
+            </div>
+
+            <!-- 底部操作区 -->
+        <div id="bottom-area">
+            <div class="tool-panel">
+                <div class="tool-btn" id="btn-phone" onclick="useTool('phone')">
+                    <div class="icon-ascii">☎</div>
+                    <div>联络通讯</div>
+                </div>
+                <div class="tool-btn" id="btn-scan" onclick="useTool('scan')">
+                    <div class="icon-ascii">⎚</div>
+                    <div>安检扫描 (S)</div>
+                </div>
+            </div>
+            
+            <div id="dialog-container">
+                <div id="dialog-box">
+                    <div id="dialog-speaker">系统提示</div>
+                    <div id="dialog-text">等待访客就绪...请使用两侧的工具对访客进行全面查验。</div>
+                </div>
+                
+                <div id="decision-actions">
+                    <button class="action-btn" id="btn-approve" onclick="makeDecision(true)">放行 (A)</button>
+                    <button class="action-btn btn-danger" id="btn-reject" onclick="makeDecision(false)">呼叫胃酸销毁 (D)</button>
+                </div>
+            </div>
+
+            <div class="tool-panel" id="list-panel">
+                <div class="tool-btn" id="btn-list" onclick="useTool('list')">
+                    <div class="icon-ascii">📋</div>
+                    <div>今日名单</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 结局屏 -->
+        <div id="screen-end">
+            <h1 id="end-title" style="font-size: 40px; margin-bottom: 20px;"></h1>
+            <div id="end-art" style="white-space: pre; font-family: monospace; font-size: 16px; margin-bottom: 30px;"></div>
+            <p id="end-desc" style="font-size: 20px; max-width: 600px; line-height: 1.5; margin-bottom: 40px;"></p>
+            <button class="btn-start" onclick="location.reload()">重新开始</button>
+        </div>
+
+        <!-- 弹窗：名单 -->
+        <div id="modal-list" class="modal">
+            <div class="close-btn" onclick="closeModal('modal-list')">✖</div>
+            <div class="modal-title">今日获准入境食物名单</div>
+            <ul style="list-style: square; padding-left: 30px; line-height: 2; font-size: 28px;" id="list-content">
+                <li>翠花 (西兰花)</li>
+                <li>肠霸天 (淀粉肠)</li>
+                <li>苹平安 (红富士)</li>
+                <li>麦阿哥 (麦乐鸡)</li>
+                <li>沙拉 (轻食蔬菜)</li>
+            </ul>
+            <div style="margin-top: 25px; font-size: 20px; color: var(--text-dim);">* 注: 请核对入境许可证上的姓名是否完全一致。</div>
+        </div>
+
+        <!-- 弹窗：电话 -->
+    <div id="modal-phone" class="modal">
+        <div class="close-btn" onclick="closeModal('modal-phone')">✖</div>
+        <div class="modal-title">内部通讯专线</div>
+        <div style="display: flex; gap: 40px; justify-content: center; margin-top: 30px;">
+            <div style="text-align: center;">
+                <pre style="font-size: 22px; line-height: 1.1;">
+     .---.
+   /   _   \
+  |  /   \  |
+  |  \___/  |
+   \   _   /
+     \___/
+                </pre>
+                <button class="action-btn" onclick="callOrgan('nose')" style="font-size:20px; padding: 10px 20px; margin-top: 15px;">呼叫 [鼻子]</button>
+            </div>
+            <div style="text-align: center;">
+                <pre style="font-size: 22px; line-height: 1.1;">
+     .---.
+   /       \
+  |  ====   |
+  |  ====   |
+   \       /
+     `---`
+                </pre>
+                <button class="action-btn" onclick="callOrgan('mouth')" style="font-size:20px; padding: 10px 20px; margin-top: 15px;">呼叫 [嘴巴]</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ==================== 音效引擎 (Web Audio API) ====================
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playTone(freq, type, duration, vol=0.1) {
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+}
+
+const sfx = {
+    type: () => playTone(600, 'square', 0.05, 0.05),
+    start: () => { playTone(440, 'square', 0.1); setTimeout(()=>playTone(660, 'square', 0.2), 100); },
+    scan: () => playTone(150, 'sawtooth', 0.8, 0.2),
+    alert: () => { playTone(200, 'sawtooth', 0.3, 0.2); setTimeout(()=>playTone(150, 'sawtooth', 0.4, 0.2), 300); },
+    success: () => { playTone(523.25, 'sine', 0.1); setTimeout(()=>playTone(659.25, 'sine', 0.1), 100); setTimeout(()=>playTone(783.99, 'sine', 0.2), 200); },
+    phone: () => { playTone(800, 'sine', 0.1); setTimeout(()=>playTone(800, 'sine', 0.1), 200); }
+};
+
+// ==================== 游戏数据与素材 ====================
+
+const titleArt = `
+  __   _    _  ___  __  __ ___   __  __ 
+ / _| | |  / || _ )|  \\/  |_ _| |  \\/  |
+ > _ \\| |__| || _ \\| |\\/| || |  | |\\/| |
+ \\___/|____|_||___/|_|  |_|___| |_|  |_|
+  肠 胃 审 查 官 : G A S T R I C   I.D.
+`;
+
+// ASCII 人物立绘素材
+const artBroccoli = `
+       _,,--,,_
+     /          \\
+    |   _    _   |
+    |  / \\  / \\  |
+     \\  \\/  \\/  /
+      \\        /
+       |      |
+      /        \\
+     |__________|
+`;
+
+const artSausage = `
+      .--------.
+     /          \\
+    |  [====]    |
+    |            |
+    |  [====]    |
+    |            |
+    |  [====]    |
+     \\          /
+      '--------'
+          ||
+`;
+
+const artSausageFake = `
+      .--------.
+     / <span class="red-code">0x9F</span>     \\
+    |  [====]    |
+    |            |
+    |  [<span class="red-code">ERR!</span>]    |
+    |            |
+    |  [====]    |
+     \\     <span class="red-code">NULL</span> /
+      '--------'
+          ||
+`;
+
+const artApple = `
+         ,-.
+       ,'   \`.
+      /       \\
+     |  (o) (o) |
+     |    >     |
+      \\  \\___/  /
+       \`.___,'
+`;
+
+const artNugget = `
+       .-------.
+      /         \\
+     |   -   -   |
+     |     o     |
+      \\         /
+       \`-------'
+`;
+
+const artNuggetFake = `
+       .-------.
+      / <span class="red-code">#4A</span>     \\
+     |   -   -   |
+     |     o   <span class="red-code">NaN</span>|
+      \\  <span class="red-code">X00</span>   /
+       \`-------'
+`;
+
+const artSalad = `
+       .-------.
+      / ~ ~ ~ ~ \\
+     |-----------|
+     |  @  &  @  |
+     |-----------|
+      \\_________/
+`;
+
+// 为了体现预制菜特点，如果安检后暴露真面目，显示以下图案
+const artSaladFake = `
+       .-------.
+      / <span class="red-code">SY</span>~ <span class="red-code">NT</span>~ \\
+     |-----------|
+     |  @ <span class="red-code">ERR</span> @  |
+     |-----------|
+      \\_________/
+`;
+
+// 访客数据配置
+const visitors = [
+    {
+        id: "v1",
+        name: "翠花",
+        type: "real",
+        artNormal: artBroccoli,
+        artScanned: null, // 真食物扫描后不变
+        idCard: { name: "翠花", type: "蔬菜/植物", serial: "VG-001" },
+        dialog: "长官好！我是今天刚采摘的西兰花，富含膳食纤维，请求进入胃部消化系统！",
+        nose: "闻起来有一股清新的泥土和植物香气，很天然的自然气息。",
+        mouth: "口感清脆，咀嚼时能感受到新鲜的水分，没有多余的油脂，是真正的蔬菜。"
+    },
+    {
+        id: "v2",
+        name: "肠霸天",
+        type: "fake",
+        artNormal: artSausage,
+        artScanned: artSausageFake,
+        idCard: { name: "肠霸天", type: "肉类加工", serial: "MT-020" },
+        dialog: "嘿，伙计。我是新鲜的猪肉肠，肉质紧实，快放我进去补充蛋白质。",
+        nose: "警告：有很重的工业香精味和防腐剂味，掩盖了原本的肉味。",
+        mouth: "口感极差，全是淀粉的粘腻感，根本感受不到肉质纤维的存在。"
+    },
+    {
+        id: "v3",
+        name: "苹平安",
+        type: "real",
+        artNormal: artApple,
+        artScanned: null,
+        idCard: { name: "苹平安", type: "水果", serial: "FR-103" },
+        dialog: "您好长官，我是今天摄入的饭后水果苹果，能够提供丰富的维生素C。",
+        nose: "清甜的果香扑鼻而来，没有任何刺鼻的化学合成气味。",
+        mouth: "果肉多汁，酸甜可口，表皮脆爽，非常健康的天然食物。"
+    },
+    {
+        id: "v4",
+        name: "麦阿哥",
+        type: "fake",
+        artNormal: artNugget,
+        artScanned: artNuggetFake,
+        idCard: { name: "麦阿哥", type: "家禽加工", serial: "PL-004" },
+        dialog: "Bro！我是金黄酥脆的炸鸡块，高热量能给身体带来快乐！",
+        nose: "油炸的香气中夹杂着一种奇怪的塑料味和放置过久的冷冻仓味。",
+        mouth: "这肉泥混合物质地均一得不自然，像在嚼调味过的硬纸板！"
+    },
+    {
+        id: "v5",
+        name: "沙拉",
+        type: "fake", 
+        // 关键逻辑：名字不符。名单叫"沙拉"，ID叫"莎菈"
+        artNormal: artSalad,
+        artScanned: artSaladFake,
+        idCard: { name: "莎菈", type: "混合蔬菜", serial: "MX-999" },
+        dialog: "晚上好，我是减脂期的好帮手蔬菜沙拉，快让我进去燃烧脂肪吧~",
+        nose: "酱汁味道极其浓郁刺鼻，完全掩盖了蔬菜原本的味道，且含有大量的反式脂肪酸气味。",
+        mouth: "蔬菜的口感有点发蔫，防腐剂味道重，沙拉酱甜得发腻，是高度加工的伪装预制菜！"
+    }
+];
+
+// ==================== 游戏状态管理 ====================
+let state = {
+    hp: 3,
+    discernment: 3,
+    acid: 5,
+    currentIndex: 0,
+    scanned: false,
+    gameOver: false,
+    toolsUsed: { phone: false, scan: false, list: false }
+};
+
+// ==================== 核心逻辑 ====================
+
+function initGame() {
+    document.getElementById('title-art').innerHTML = titleArt;
+    
+    // 动态缩放适应屏幕
+    function resizeGame() {
+        const container = document.getElementById('game-container');
+        const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+        container.style.transform = `scale(${scale})`;
+    }
+    window.addEventListener('resize', resizeGame);
+    resizeGame();
+}
+
+function startGame() {
+    sfx.start();
+    document.getElementById('screen-cover').style.display = 'none';
+    document.getElementById('screen-game').style.display = 'flex';
+    
+    // 初始化状态
+    state.hp = 3; state.discernment = 3; state.acid = 5; state.currentIndex = 0; state.gameOver = false;
+    state.toolsUsed = { phone: false, scan: false, list: false };
+    updateStatsUI();
+    loadVisitor();
+}
+
+function updateStatsUI() {
+    document.getElementById('stat-hp').innerText = `血量: ${'■'.repeat(state.hp)}${'□'.repeat(3 - state.hp)}`;
+    document.getElementById('stat-disc').innerText = `分辨力: ${'■'.repeat(state.discernment)}${'□'.repeat(3 - state.discernment)}`;
+    document.getElementById('stat-acid').innerText = `胃酸: ${'■'.repeat(state.acid)}${'□'.repeat(5 - state.acid)}`;
+    document.getElementById('stat-visitor').innerText = `访客: ${state.currentIndex + 1}/5`;
+    
+    if (state.hp <= 0) triggerEnd(false, "血量归零，肠胃因摄入过多有害物质而彻底崩溃！");
+    if (state.discernment <= 0) triggerEnd(false, "分辨力丧失，你已经无法区分天然食物与工业垃圾，被撤职查办！");
+    if (state.acid <= 0) triggerEnd(false, "胃酸耗尽，无法消化任何食物，身体陷入营养不良与停摆！");
+}
+
+function loadVisitor() {
+    if (state.gameOver) return;
+    if (state.currentIndex >= visitors.length) {
+        triggerEnd(true, "干得漂亮，审查官！你成功阻挡了所有工业预制菜的入侵，维护了肠胃的和平与健康！");
+        return;
+    }
+
+    const v = visitors[state.currentIndex];
+    state.scanned = false;
+    
+    // 重置UI
+    document.getElementById('visitor-art').innerHTML = v.artNormal;
+    document.getElementById('visitor-art').className = "";
+    document.getElementById('id-card').style.display = 'block';
+    document.getElementById('id-content').innerHTML = `
+        <span style="font-size: 24px;">姓名：${v.idCard.name}</span><br>
+        <span style="font-size: 24px;">类型：${v.idCard.type}</span><br>
+        <span style="font-size: 24px;">编号：${v.idCard.serial}</span>
+    `;
+    
+    // 重置工具状态和按钮
+    state.toolsUsed = { phone: false, scan: false, list: false };
+    document.getElementById('btn-phone').classList.remove('used');
+    document.getElementById('btn-scan').classList.remove('used');
+    document.getElementById('btn-list').classList.remove('used');
+    document.getElementById('decision-actions').style.display = 'none';
+    document.getElementById('btn-approve').disabled = false;
+    document.getElementById('btn-reject').disabled = false;
+
+    typeWriterEffect("dialog-text", v.dialog, v.name);
+}
+
+function useTool(toolType) {
+    if (state.gameOver) return;
+    
+    if (toolType === 'phone') {
+        openModal('modal-phone');
+        state.toolsUsed.phone = true;
+        document.getElementById('btn-phone').classList.add('used');
+        checkToolsComplete();
+    } else if (toolType === 'list') {
+        openModal('modal-list');
+        state.toolsUsed.list = true;
+        document.getElementById('btn-list').classList.add('used');
+        checkToolsComplete();
+    } else if (toolType === 'scan') {
+        if (!state.scanned) {
+            triggerScan();
+            state.toolsUsed.scan = true;
+            document.getElementById('btn-scan').classList.add('used');
+        }
+    }
+}
+
+function checkToolsComplete() {
+    if (state.toolsUsed.phone && state.toolsUsed.scan && state.toolsUsed.list) {
+        document.getElementById('decision-actions').style.display = 'flex';
+    }
+}
+
+function triggerScan() {
+    if (state.scanned || state.gameOver) return;
+    sfx.scan();
+    state.scanned = true;
+    
+    const v = visitors[state.currentIndex];
+    const beam = document.getElementById('scanner-beam');
+    beam.style.display = 'block';
+    
+    // 扫描动画
+    let pos = 0;
+    const interval = setInterval(() => {
+        pos += 10;
+        beam.style.top = pos + 'px';
+        if (pos > 300) {
+            clearInterval(interval);
+            beam.style.display = 'none';
+            beam.style.top = '0';
+            
+            // 扫描结果展示
+            if (v.type === 'fake' && v.artScanned) {
+                document.getElementById('visitor-art').innerHTML = v.artScanned;
+                sfx.alert();
+                typeWriterEffect("dialog-text", "[系统警告] 发现异常构造！检测到工业合成痕迹！", "安检仪");
+            } else {
+                typeWriterEffect("dialog-text", "[扫描完毕] 未发现明显的皮下工业改造痕迹。", "安检仪");
+            }
+            
+            checkToolsComplete();
+        }
+    }, 20);
+}
+
+function makeDecision(isApprove) {
+    if (state.gameOver) return;
+    const v = visitors[state.currentIndex];
+    let msg = "";
+    let msgSpeaker = "系统反馈";
+
+    // 禁用按钮防多次点击
+    document.getElementById('btn-approve').disabled = true;
+    document.getElementById('btn-reject').disabled = true;
+    document.getElementById('id-card').style.display = 'none';
+    document.getElementById('decision-actions').style.display = 'none';
+
+    if (isApprove) {
+        if (v.type === 'real') {
+            msg = `成功放行！身体吸收了健康的营养！(血量恢复，若未满)`;
+            state.hp = Math.min(3, state.hp + 1);
+            sfx.success();
+            document.getElementById('visitor-art').className = "text-dim"; // 变暗消失效果
+        } else {
+            msg = `[严重警告] 你放行了工业预制菜！防腐剂和反式脂肪正在破坏肠胃环境！(血量-1，分辨力-1)`;
+            state.hp -= 1;
+            state.discernment -= 1;
+            sfx.alert();
+            document.getElementById('visitor-art').className = "text-red";
+        }
+    } else { // 呼叫胃酸
+        if (v.type === 'real') {
+            msg = `[误判] 你销毁了真正的天然食物！浪费了宝贵的食物，并且无效消耗了胃酸！(血量-1，胃酸-1)`;
+            state.hp -= 1;
+            state.acid -= 1;
+            sfx.alert();
+        } else {
+            msg = `拦截成功！胃酸守卫将预制菜彻底溶解，消除了潜在威胁！(消耗胃酸-1)`;
+            state.acid -= 1;
+            sfx.success();
+        }
+        document.getElementById('visitor-art').innerHTML = "♨ 嘶嘶...已被胃酸溶解 ♨";
+    }
+
+    typeWriterEffect("dialog-text", msg, msgSpeaker);
+    updateStatsUI();
+
+    if (!state.gameOver) {
+        setTimeout(() => {
+            state.currentIndex++;
+            loadVisitor();
+        }, 3000);
+    }
+}
+
+function callOrgan(organ) {
+    sfx.phone();
+    const v = visitors[state.currentIndex];
+    closeModal('modal-phone');
+    if (organ === 'nose') {
+        typeWriterEffect("dialog-text", `"${v.nose}"`, "📞 鼻子汇报");
+    } else {
+        typeWriterEffect("dialog-text", `"${v.mouth}"`, "📞 嘴巴汇报");
+    }
+}
+
+// ==================== UI 工具函数 ====================
+
+function openModal(id) {
+    if(state.gameOver) return;
+    sfx.type();
+    document.getElementById(id).style.display = 'block';
+}
+
+function closeModal(id) {
+    sfx.type();
+    document.getElementById(id).style.display = 'none';
+}
+
+// 打字机效果
+let typeInterval;
+function typeWriterEffect(elementId, text, speakerName) {
+    clearInterval(typeInterval);
+    document.getElementById('dialog-speaker').innerText = speakerName;
+    const el = document.getElementById(elementId);
+    el.innerHTML = "";
+    let i = 0;
+    
+    // 简易HTML标签过滤处理（如果有用到span）
+    el.innerHTML = text; 
+    /* 为保证性能和HTML标签兼容，这里使用直接显示，不逐字打，
+       如果需要纯文本逐字，可启用下方代码并过滤HTML */
+}
+
+function triggerEnd(isVictory, reason) {
+    state.gameOver = true;
+    setTimeout(() => {
+        document.getElementById('screen-game').style.display = 'none';
+        const endScreen = document.getElementById('screen-end');
+        endScreen.style.display = 'flex';
+        
+        if (isVictory) {
+            sfx.success();
+            document.getElementById('end-title').innerText = "=== 审查通过：健康卫士 ===";
+            document.getElementById('end-title').style.color = "var(--text-main)";
+            document.getElementById('end-art').innerHTML = `
+      \\O/
+       | 
+      / \\
+            `;
+        } else {
+            sfx.alert();
+            document.getElementById('end-title').innerText = "=== 审查失败：防线崩溃 ===";
+            document.getElementById('end-title').style.color = "var(--text-alert)";
+            document.getElementById('end-art').innerHTML = `
+       X_X
+       /|\\ 
+       / \\
+            `;
+            document.getElementById('end-art').className = "text-red";
+        }
+        document.getElementById('end-desc').innerText = reason;
+    }, 1500);
+}
+
+// 快捷键绑定
+document.addEventListener('keydown', (e) => {
+    if(document.getElementById('screen-cover').style.display !== 'none') {
+        if(e.key === 'Enter') startGame();
+        return;
+    }
+    
+    // 如果有弹窗开着，Esc关闭
+    if (e.key === 'Escape') {
+        closeModal('modal-list');
+        closeModal('modal-phone');
+    }
+
+    if (state.gameOver) return;
+    
+    const actionsVisible = document.getElementById('decision-actions').style.display === 'flex';
+    const btnA = document.getElementById('btn-approve');
+    const btnD = document.getElementById('btn-reject');
+
+    if (actionsVisible && e.key.toLowerCase() === 'a' && !btnA.disabled) makeDecision(true);
+    if (actionsVisible && e.key.toLowerCase() === 'd' && !btnD.disabled) makeDecision(false);
+    if (e.key.toLowerCase() === 's') useTool('scan');
+});
+
+// 初始化
+window.onload = initGame;
+
+</script>
+</body>
+</html>
